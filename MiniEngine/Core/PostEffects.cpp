@@ -46,6 +46,7 @@
 #include "CompiledShaders/ExtractLumaCS.h"
 #include "CompiledShaders/AverageLumaCS.h"
 #include "CompiledShaders/CopyBackPostBufferCS.h"
+#include "CompiledShaders/MyEffectCS.h"
 
 using namespace Graphics;
 
@@ -60,6 +61,12 @@ namespace FXAA
 }
 
 namespace DepthOfField
+{
+	extern BoolVar Enable;
+	extern EnumVar DebugMode;
+}
+
+namespace MyEffect
 {
 	extern BoolVar Enable;
 	extern EnumVar DebugMode;
@@ -110,6 +117,7 @@ namespace PostEffects
 	ComputePSO ExtractLumaCS;
 	ComputePSO AverageLumaCS;
 	ComputePSO CopyBackPostBufferCS;
+	ComputePSO MyEffectCS;
 
 	StructuredBuffer g_Exposure;
 
@@ -119,6 +127,7 @@ namespace PostEffects
 	void ExtractLuma(ComputeContext&);
 	void ProcessHDR(ComputeContext&);
 	void ProcessLDR(CommandContext&);
+	void MyEffect(CommandContext&);
 }
 
 void PostEffects::Initialize( void )
@@ -165,6 +174,7 @@ void PostEffects::Initialize( void )
 	CreatePSO( ExtractLumaCS, g_pExtractLumaCS );
 	CreatePSO( AverageLumaCS, g_pAverageLumaCS );
 	CreatePSO( CopyBackPostBufferCS, g_pCopyBackPostBufferCS );
+	CreatePSO( MyEffectCS, g_pMyEffectCS);
 
 
 #undef CreatePSO
@@ -442,6 +452,20 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 	}
 }
 
+void PostEffects::MyEffect(CommandContext& BaseContext)
+{
+	ScopedTimer _prof(L"Lens Flare", BaseContext);
+
+	ComputeContext& Context = BaseContext.GetComputeContext();
+
+	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+
+	Context.SetPipelineState(MyEffectCS);
+	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+}
+
 void PostEffects::Render( void )
 {
 	ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
@@ -458,6 +482,8 @@ void PostEffects::Render( void )
 	bool bGeneratedLumaBuffer = EnableHDR || FXAA::DebugDraw || BloomEnable;
 	if (FXAA::Enable)
 		FXAA::Render(Context, bGeneratedLumaBuffer);
+
+	MyEffect(Context);
 
 	TemporalAA::ApplyTemporalAA(Context);
 
