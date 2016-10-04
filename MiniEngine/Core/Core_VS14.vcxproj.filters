@@ -739,6 +739,9 @@
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\MyEffectCS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl">

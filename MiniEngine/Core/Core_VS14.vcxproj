@@ -284,6 +284,7 @@
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\FXAAResolveWorkQueueCS.hlsl" />
+    <FxCompile Include="Shaders\MyEffectCS.hlsl" />
     <FxCompile Include="Shaders\ParticleBinCullingCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDepthBoundsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDispatchIndirectArgsCS.hlsl" />
