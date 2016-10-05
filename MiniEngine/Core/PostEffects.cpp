@@ -458,9 +458,20 @@ void PostEffects::MyEffect(CommandContext& BaseContext)
 
 	ComputeContext& Context = BaseContext.GetComputeContext();
 
+	// First copy scene to ping pong buffer
+	/*Context.SetPipelineState(CopyShader);
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
+	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());*/
+
+	Context.CopyBuffer(g_SceneColorBuffer, g_PingPongBuffer);
+
+	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
 	Context.SetPipelineState(MyEffectCS);
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
@@ -483,9 +494,10 @@ void PostEffects::Render( void )
 	if (FXAA::Enable)
 		FXAA::Render(Context, bGeneratedLumaBuffer);
 
+	TemporalAA::ApplyTemporalAA(Context);
+
 	MyEffect(Context);
 
-	TemporalAA::ApplyTemporalAA(Context);
 
 	// In the case where we've been doing post processing in a separate buffer, we need to copy it
 	// back to the original buffer.  It is possible to skip this step if the next shader knows to

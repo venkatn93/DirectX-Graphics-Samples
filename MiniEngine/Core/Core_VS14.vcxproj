@@ -226,6 +226,7 @@
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl" />
+    <FxCompile Include="Shaders\Downcopy4to1CS.hlsl" />
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdrCS.hlsl" />

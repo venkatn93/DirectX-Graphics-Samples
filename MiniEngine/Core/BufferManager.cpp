@@ -21,6 +21,7 @@ namespace Graphics
 {
 	DepthBuffer g_SceneDepthBuffer;
 	ColorBuffer g_SceneColorBuffer;
+	ColorBuffer g_PingPongBuffer;
 	ColorBuffer g_PostEffectsBuffer;
 	ColorBuffer g_ReprojectionBuffer;
 	ColorBuffer g_OverlayBuffer;
@@ -108,6 +109,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 	esram.PushStack();
 
 		g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
+		g_PingPongBuffer.Create( L"Ping Pong Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
 		g_ReprojectionBuffer.Create( L"Temporal Reprojection", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16_FLOAT );
 		if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
 			g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
@@ -232,6 +234,7 @@ void Graphics::DestroyRenderingBuffers()
 {
 	g_SceneDepthBuffer.Destroy();
 	g_SceneColorBuffer.Destroy();
+	g_PingPongBuffer.Destroy();
 	g_ReprojectionBuffer.Destroy();
 	g_OverlayBuffer.Destroy();
 	g_HorizontalBuffer.Destroy();

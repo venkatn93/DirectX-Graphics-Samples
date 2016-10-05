@@ -18,12 +18,12 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	float2 reverseBrightSpot = float2(0.5, 0.5) - projectedBrightSpot;
 	for (int i = 0; i < flaresNo; ++i)
 	{
-		float2 currentSpot = projectedBrightSpot + (reverseBrightSpot - projectedBrightSpot) * (i / flaresNo);
+		float2 currentSpot = lerp(projectedBrightSpot, reverseBrightSpot, (i / flaresNo));
 		float flareRadius = 0.05 * i;
 		float currDistance = length(currentSpot - UV);
 		if (currDistance < flareRadius)
 		{
-			color = lerp(color, float3(1, 1, 1), 0.5);
+			color = (color + float3(1, 1, 1)) / 2.0;
 		}
 	}
 

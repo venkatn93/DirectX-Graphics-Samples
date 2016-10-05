@@ -742,6 +742,8 @@
     <FxCompile Include="Shaders\MyEffectCS.hlsl">
       <Filter>Shaders\HDR</Filter>
     </FxCompile>
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl">
