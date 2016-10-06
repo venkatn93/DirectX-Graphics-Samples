@@ -457,21 +457,24 @@ void PostEffects::MyEffect(CommandContext& BaseContext)
 	ScopedTimer _prof(L"Lens Flare", BaseContext);
 
 	ComputeContext& Context = BaseContext.GetComputeContext();
+	Context.SetRootSignature(PostEffectsRS);
 
 	// First copy scene to ping pong buffer
-	/*Context.SetPipelineState(CopyShader);
+	/*Context.SetPipelineState(Downcopy4to1CS);
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
 	Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());*/
 
-	Context.CopyBuffer(g_SceneColorBuffer, g_PingPongBuffer);
-
+	//Context.CopyBuffer(g_PingPongBuffer, g_SceneColorBuffer);
+	//Context.InsertUAVBarrier(g_SceneColorBuffer, true);
+	//Context.InsertUAVBarrier(g_PingPongBuffer, true);
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	//Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-	Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	//Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
 	Context.SetPipelineState(MyEffectCS);
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());

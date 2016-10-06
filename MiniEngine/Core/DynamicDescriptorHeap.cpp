@@ -300,7 +300,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::UnbindAllValid()
 
 void DynamicDescriptorHeap::DescriptorHandleCache::StageDescriptorHandles( UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[] )
 {
-	ASSERT(((1 << RootIndex) & m_RootDescriptorTablesBitMap) != 0, "Root parameter is not a CBV_SRV_UAV descriptor table");
+  	ASSERT(((1 << RootIndex) & m_RootDescriptorTablesBitMap) != 0, "Root parameter is not a CBV_SRV_UAV descriptor table");
 	ASSERT(Offset + NumHandles <= m_RootDescriptorTable[RootIndex].TableSize);
 
 	DescriptorTableCache& TableCache = m_RootDescriptorTable[RootIndex];

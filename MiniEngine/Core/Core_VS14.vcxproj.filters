@@ -742,6 +742,7 @@
     <FxCompile Include="Shaders\MyEffectCS.hlsl">
       <Filter>Shaders\HDR</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\Downcopy4to1CS.hlsl">
       <Filter>Shaders\Misc</Filter>
     </FxCompile>
   </ItemGroup>

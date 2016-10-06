@@ -15,5 +15,5 @@ void main(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID)
 		+ CopySrc[DTid.xy + float2(1, 0)]
 		+ CopySrc[DTid.xy + float2(0, 1)]
 		+ CopySrc[DTid.xy + float2(1, 1)]) * 0.25;*/
-	CopyDest[Gid.xy] = average;
+	//CopyDest[Gid.xy] = average;
 }
