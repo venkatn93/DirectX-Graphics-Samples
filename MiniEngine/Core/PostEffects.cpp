@@ -127,7 +127,7 @@ namespace PostEffects
 	void ExtractLuma(ComputeContext&);
 	void ProcessHDR(ComputeContext&);
 	void ProcessLDR(CommandContext&);
-	void MyEffect(CommandContext&);
+	void MyEffect(ComputeContext&);
 }
 
 void PostEffects::Initialize( void )
@@ -452,11 +452,11 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 	}
 }
 
-void PostEffects::MyEffect(CommandContext& BaseContext)
+void PostEffects::MyEffect(ComputeContext& Context)
 {
-	ScopedTimer _prof(L"Lens Flare", BaseContext);
+	ScopedTimer _prof(L"Lens Flare", Context);
 
-	ComputeContext& Context = BaseContext.GetComputeContext();
+	// ComputeContext& Context = Context.GetComputeContext();
 	Context.SetRootSignature(PostEffectsRS);
 
 	// First copy scene to ping pong buffer
@@ -467,17 +467,19 @@ void PostEffects::MyEffect(CommandContext& BaseContext)
 	Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());*/
 
-	//Context.CopyBuffer(g_PingPongBuffer, g_SceneColorBuffer);
+	Context.CopyBuffer(g_PingPongBuffer, g_SceneColorBuffer);
 	//Context.InsertUAVBarrier(g_SceneColorBuffer, true);
 	//Context.InsertUAVBarrier(g_PingPongBuffer, true);
-	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	//Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
-	//Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
+	//Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
 	Context.SetPipelineState(MyEffectCS);
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+
+    Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void PostEffects::Render( void )
@@ -498,42 +500,54 @@ void PostEffects::Render( void )
 		FXAA::Render(Context, bGeneratedLumaBuffer);
 
 	TemporalAA::ApplyTemporalAA(Context);
+    Context.Finish(true);
 
-	MyEffect(Context);
+
+    {
+        ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
+        MyEffect(Context);
+        Context.Finish();
+    }
 
 
-	// In the case where we've been doing post processing in a separate buffer, we need to copy it
-	// back to the original buffer.  It is possible to skip this step if the next shader knows to
-	// do the manual format decode from UINT, but there are several code paths that need to be
-	// changed, and some of them rely on texture filtering, which won't work with UINT.  Since this
-	// is only to support legacy hardware and a single buffer copy isn't that big of a deal, this
-	// is the most economical solution.
-	if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-	{
-		ScopedTimer _prof(L"Copy Post back to Scene", Context);
-		Context.SetRootSignature(PostEffectsRS);
-		Context.SetPipelineState(CopyBackPostBufferCS);
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-		Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
-		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
-	}
+    {
+        ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
+        Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	if (DrawHistogram)
-	{
-		ScopedTimer _prof(L"Draw Debug Histogram", Context);
-		Context.SetRootSignature(PostEffectsRS);
-		Context.SetPipelineState(DrawHistogramCS);
-		Context.InsertUAVBarrier(g_SceneColorBuffer);
-		Context.TransitionResource(g_Histogram, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-		D3D12_CPU_DESCRIPTOR_HANDLE SRVs[2] = { g_Histogram.GetSRV(), g_Exposure.GetSRV() };
-		Context.SetDynamicDescriptors(2, 0, 2, SRVs);
-		Context.Dispatch(1, 32);
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	}
 
-	Context.Finish();
+        // In the case where we've been doing post processing in a separate buffer, we need to copy it
+        // back to the original buffer.  It is possible to skip this step if the next shader knows to
+        // do the manual format decode from UINT, but there are several code paths that need to be
+        // changed, and some of them rely on texture filtering, which won't work with UINT.  Since this
+        // is only to support legacy hardware and a single buffer copy isn't that big of a deal, this
+        // is the most economical solution.
+        if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+        {
+            ScopedTimer _prof(L"Copy Post back to Scene", Context);
+            Context.SetRootSignature(PostEffectsRS);
+            Context.SetPipelineState(CopyBackPostBufferCS);
+            Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+            Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
+            Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+        }
+
+        if (DrawHistogram)
+        {
+            ScopedTimer _prof(L"Draw Debug Histogram", Context);
+            Context.SetRootSignature(PostEffectsRS);
+            Context.SetPipelineState(DrawHistogramCS);
+            Context.InsertUAVBarrier(g_SceneColorBuffer);
+            Context.TransitionResource(g_Histogram, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+            D3D12_CPU_DESCRIPTOR_HANDLE SRVs[2] = { g_Histogram.GetSRV(), g_Exposure.GetSRV() };
+            Context.SetDynamicDescriptors(2, 0, 2, SRVs);
+            Context.Dispatch(1, 32);
+            Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        }
+
+        Context.Finish();
+    }
 }
