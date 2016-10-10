@@ -23,6 +23,7 @@
 #include "MotionBlur.h"
 #include "DepthOfField.h"
 #include "FXAA.h"
+#include "Camera.h"
 
 #include "CompiledShaders/ToneMapCS.h"
 #include "CompiledShaders/ToneMap2CS.h"
@@ -472,6 +473,8 @@ void PostEffects::MyEffect(ComputeContext& Context)
 	//Context.InsertUAVBarrier(g_PingPongBuffer, true);
     Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	//Context.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	//Matrix4 viewProjectionMat;
+	//Context.SetConstants(0, viewProjectionMat);
 	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
 	//Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
 	//Context.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
@@ -497,19 +500,19 @@ void PostEffects::Render( void )
 	if (FXAA::Enable)
 		FXAA::Render(Context, bGeneratedLumaBuffer);
 
-	TemporalAA::ApplyTemporalAA(Context);
+	//TemporalAA::ApplyTemporalAA(Context);
     Context.Finish();
 
 
     {
-        ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
-        MyEffect(Context);
-        Context.Finish();
+        //ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
+        //MyEffect(Context);
+        //Context.Finish();
     }
 
 
     {
-        ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
+        ComputeContext& Context = ComputeContext::Begin(L"After Post Effects");
         Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 

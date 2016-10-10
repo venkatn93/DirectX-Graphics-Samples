@@ -31,6 +31,7 @@
 #include "ShadowCamera.h"
 #include "ParticleEffectManager.h"
 #include "GameInput.h"
+#include "LensFlare.h"
 
 #include "CompiledShaders/DepthViewerVS.h"
 #include "CompiledShaders/DepthViewerPS.h"
@@ -376,6 +377,8 @@ void ModelViewer::RenderScene( void )
 		DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
 	else
 		MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
+
+	LensFlare::Render(gfxContext, m_Camera);
 
 	gfxContext.Finish();
 }

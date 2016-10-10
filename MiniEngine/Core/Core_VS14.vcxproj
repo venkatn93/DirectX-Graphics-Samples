@@ -101,6 +101,7 @@
     <ClInclude Include="GraphicsCore.h" />
     <ClInclude Include="GraphRenderer.h" />
     <ClInclude Include="Hash.h" />
+    <ClInclude Include="LensFlare.h" />
     <ClInclude Include="LinearAllocator.h" />
     <ClInclude Include="Math\BoundingPlane.h" />
     <ClInclude Include="Math\BoundingSphere.h" />
@@ -159,6 +160,7 @@
     <ClCompile Include="GpuTimeManager.cpp" />
     <ClCompile Include="GraphicsCore.cpp" />
     <ClCompile Include="GraphRenderer.cpp" />
+    <ClCompile Include="LensFlare.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="Math\Frustum.cpp" />
     <ClCompile Include="Math\Random.cpp" />

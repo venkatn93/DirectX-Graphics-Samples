@@ -29,6 +29,7 @@
 #include "CommandSignature.h"
 #include "ParticleEffectManager.h"
 #include "GraphRenderer.h"
+#include "LensFlare.h"
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	#include <agile.h>
@@ -601,6 +602,7 @@ void Graphics::Initialize(void)
 	GpuTimeManager::Initialize(4096);
 	InitializeRenderingBuffers(g_NativeWidth, g_NativeHeight);
 	PostEffects::Initialize();
+	LensFlare::Initialize();
 	SSAO::Initialize();
 	TextRenderer::Initialize();
 	GraphRenderer::Initialize();
