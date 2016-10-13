@@ -19,6 +19,11 @@ namespace LensFlare
 {
 	RootSignature LensFlareRS;
 	ComputePSO LensFlareCS;
+
+    struct LensFlareCB
+    {
+        Math::Vector4 projectedBrightSpot;
+    };
 }
 
 void LensFlare::Initialize(void)
@@ -55,16 +60,23 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	ComputeContext& CC = Context.GetComputeContext();
 	CC.SetRootSignature(LensFlareRS);
 
-	CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	//CC.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	const float* viewProjMat = reinterpret_cast<const float*>(&camera.GetViewProjMatrix());
-	CC.SetDynamicConstantBufferView(3, sizeof(*viewProjMat), viewProjMat);
-	CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
-	//CC.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
-	//CC.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
+    LensFlareCB lfCB;
+    Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(10, 1000, 10, 1);
+    //projected.SetX(projected.GetX() / -projected.GetZ());
+    //projected.SetY(projected.GetY() / -projected.GetZ());
+    projected /= projected.GetW();
+    if (projected.GetX() > -0.1f && projected.GetX() < 1.1f && projected.GetY() > -0.1f && projected.GetY() < 1.1f)
+    {
 
-	CC.SetPipelineState(LensFlareCS);
-	CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight());
+        CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        //CC.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        //const float* viewProjMat = reinterpret_cast<const float*>(&camera.GetViewProjMatrix());
+        CC.SetDynamicConstantBufferView(3, sizeof(LensFlareCB), &projected);
+        CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
+        //CC.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+        //CC.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
-	//CC.Finish();
+        CC.SetPipelineState(LensFlareCS);
+        CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight());
+    }
 }
