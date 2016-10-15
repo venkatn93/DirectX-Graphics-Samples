@@ -61,10 +61,11 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	CC.SetRootSignature(LensFlareRS);
 
     LensFlareCB lfCB;
-    Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(10, 1000, 10, 1);
+    Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(10, 1000, -50, 1);
     //projected.SetX(projected.GetX() / -projected.GetZ());
     //projected.SetY(projected.GetY() / -projected.GetZ());
     projected /= projected.GetW();
+    projected.SetY(1.0f - projected.GetY());
     if (projected.GetX() > -0.1f && projected.GetX() < 1.1f && projected.GetY() > -0.1f && projected.GetY() < 1.1f)
     {
 
