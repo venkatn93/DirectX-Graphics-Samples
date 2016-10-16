@@ -17,10 +17,8 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	float2 texCoords = float2(DTid.xy);
 	float2 UV = texCoords / float2(1920.0, 1080.0);
 	//UV.x *= 1920.0 / 1080.0;
-    //float3 brightSpotWorldSpace = float3(10, 100, 10);
-	//float2 projectedBrightSpot = mul(viewProjMat, float4(brightSpotWorldSpace, 1.0)).xy;
     float2 projected = projectedBrightSpot.xy;
-    const int flaresNo = 5;
+	float2 reverseBrightSpot = (float2(1, 1)) - projected;
 	float3 color = ColorBuf[texCoords];
 
 	// Draw horizontal flare
@@ -35,8 +33,29 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	}
 
 	// Draw circular flares
-	float2 reverseBrightSpot = (float2(1, 1)) - projected;
-	for (int i = 1; i <= flaresNo; ++i)
+	float flareRadius = 0.0050;
+	float2 currentSpot = lerp(projected, reverseBrightSpot, 0.75);
+	float currDistance = abs(length(currentSpot - UV));
+	float falloffFactor = 1.0 - clamp(currDistance / flareRadius, 0, 1.0);
+	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
+	color = lerp(color, float3(0.7f, 0.4f, 0.2f), falloffFactor);
+
+	flareRadius = 0.06;
+	currentSpot = lerp(projected, reverseBrightSpot, 0.60);
+	currDistance = abs(length(currentSpot - UV));
+	if (currDistance <= flareRadius)
+	{
+		color = lerp(color, float3(0.7f, 0.2f, 0.9f), 0.01);
+	}
+
+	flareRadius = 0.025;
+	currentSpot = lerp(projected, reverseBrightSpot, 1);
+	currDistance = abs(length(currentSpot - UV));
+	falloffFactor = 1.0 - clamp(currDistance / flareRadius, 0, 1.0);
+	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
+	color = lerp(color, float3(0.7f, 0.4f, 0.2f), falloffFactor);
+
+	/*for (int i = 1; i <= flaresNo; ++i)
 	{
 		float2 currentSpot = lerp(projected, reverseBrightSpot, ((float)i / (float)flaresNo));
 		float flareRadius = 0.025;
@@ -49,7 +68,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 		//{
 			//color = float3(1, 1, 1);
 		//}
-	}
+	}*/
 
 	ColorBuf[texCoords] = color;
 }

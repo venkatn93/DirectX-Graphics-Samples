@@ -61,23 +61,27 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	CC.SetRootSignature(LensFlareRS);
 
     LensFlareCB lfCB;
-    Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(10, 1000, -50, 1);
+	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10, 1000, -50);
+    Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(brightSpotWorldSpace, 1.0);
     //projected.SetX(projected.GetX() / -projected.GetZ());
     //projected.SetY(projected.GetY() / -projected.GetZ());
     projected /= projected.GetW();
     projected.SetY(1.0f - projected.GetY());
-    if (projected.GetX() > -0.1f && projected.GetX() < 1.1f && projected.GetY() > -0.1f && projected.GetY() < 1.1f)
+	float dotProduct = Math::Dot(camera.GetForwardVec(), brightSpotWorldSpace - camera.GetPosition());
+	if (// dotProduct >= 0 &&
+		projected.GetX() > -0.2f && projected.GetX() < 1.2f && projected.GetY() > -0.2f && projected.GetY() < 1.2f)
     {
 
         CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        //CC.TransitionResource(g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        //CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         //const float* viewProjMat = reinterpret_cast<const float*>(&camera.GetViewProjMatrix());
-        CC.SetDynamicConstantBufferView(3, sizeof(LensFlareCB), &projected);
+		lfCB.projectedBrightSpot = projected;
+        CC.SetDynamicConstantBufferView(3, sizeof(LensFlareCB), &lfCB);
         CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
         //CC.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
         //CC.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
         CC.SetPipelineState(LensFlareCS);
-        CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight());
+        CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight(), 8, 8);
     }
 }
