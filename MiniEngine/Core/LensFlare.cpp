@@ -13,12 +13,14 @@
 #include "FXAA.h"
 #include "Camera.h"
 
-#include "CompiledShaders/MyEffectCS.h"
+#include "CompiledShaders/LensFlareCS.h"
+#include "CompiledShaders/CopyLFtoBack.h"
 
 namespace LensFlare
 {
 	RootSignature LensFlareRS;
 	ComputePSO LensFlareCS;
+	ComputePSO CopyBackCS;
 
     struct LensFlareCB
     {
@@ -42,7 +44,8 @@ void LensFlare::Initialize(void)
 	ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
 	ObjName.Finalize();
 
-	CreatePSO(LensFlareCS, g_pMyEffectCS);
+	CreatePSO(LensFlareCS, g_pLensFlareCS);
+	CreatePSO(CopyBackCS, g_pCopyLFtoBack);
 }
 
 void LensFlare::Shutdown(void)
@@ -53,12 +56,19 @@ void LensFlare::Render(GraphicsContext& Context, const float* ProjMat, float Nea
 {
 }
 
+void MakeBox(GraphicsContext& CC)
+{
+	
+}
+
 void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 {
 	ScopedTimer _prof(L"Lens Flare", Context);
 
 	ComputeContext& CC = Context.GetComputeContext();
 	CC.SetRootSignature(LensFlareRS);
+
+	MakeBox(Context);
 
     LensFlareCB lfCB;
 	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10, 1000, -50);
@@ -68,20 +78,31 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
     projected /= projected.GetW();
     projected.SetY(1.0f - projected.GetY());
 	float dotProduct = Math::Dot(camera.GetForwardVec(), brightSpotWorldSpace - camera.GetPosition());
+
+	// Render effect to half-resolution buffer
 	if (// dotProduct >= 0 &&
 		projected.GetX() > -0.2f && projected.GetX() < 1.2f && projected.GetY() > -0.2f && projected.GetY() < 1.2f)
     {
 
-        CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        //CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        //const float* viewProjMat = reinterpret_cast<const float*>(&camera.GetViewProjMatrix());
+        //CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		lfCB.projectedBrightSpot = projected;
         CC.SetDynamicConstantBufferView(3, sizeof(LensFlareCB), &lfCB);
-        CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
+        CC.SetDynamicDescriptor(1, 0, Graphics::g_PingPongBuffer.GetUAV());
         //CC.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
         //CC.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
         CC.SetPipelineState(LensFlareCS);
-        CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight(), 8, 8);
+        CC.Dispatch2D(Graphics::g_PingPongBuffer.GetWidth(), Graphics::g_PingPongBuffer.GetHeight(), 8, 8);
+
+		// Quick buffer copy
+		CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
+		CC.SetDynamicDescriptor(2, 0, Graphics::g_PingPongBuffer.GetSRV());
+		CC.SetPipelineState(CopyBackCS);
+		CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight(), 8, 8);
+
     }
+	else return;
 }

@@ -47,7 +47,6 @@
 #include "CompiledShaders/ExtractLumaCS.h"
 #include "CompiledShaders/AverageLumaCS.h"
 #include "CompiledShaders/CopyBackPostBufferCS.h"
-#include "CompiledShaders/MyEffectCS.h"
 
 using namespace Graphics;
 
@@ -175,8 +174,6 @@ void PostEffects::Initialize( void )
 	CreatePSO( ExtractLumaCS, g_pExtractLumaCS );
 	CreatePSO( AverageLumaCS, g_pAverageLumaCS );
 	CreatePSO( CopyBackPostBufferCS, g_pCopyBackPostBufferCS );
-	CreatePSO( MyEffectCS, g_pMyEffectCS);
-
 
 #undef CreatePSO
 

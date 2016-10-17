@@ -1,6 +1,6 @@
 #include "PostEffectsRS.hlsli"
 
-RWTexture2D<float3> ColorBuf : register(u0);
+RWTexture2D<float4> LFBuf : register(u0);
 
 cbuffer ConstantBuffer : register(b1)
 {
@@ -19,7 +19,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	//UV.x *= 1920.0 / 1080.0;
     float2 projected = projectedBrightSpot.xy;
 	float2 reverseBrightSpot = (float2(1, 1)) - projected;
-	float3 color = ColorBuf[texCoords];
+	float4 color = float4(0, 0, 0, 0);
 
 	// Draw horizontal flare
 	float falloffX = 1.0;
@@ -29,7 +29,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	{
 		float limitY = Falloff_Xsq_C1(currDelta.x/falloffX);
 		if (abs(currDelta.y) <= limitY)
-			color = lerp(color, float3(1, 1, 1), 0.35);
+			color += float4(1, 1, 1, 0.35);
 	}
 
 	// Draw circular flares
@@ -38,14 +38,14 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	float currDistance = abs(length(currentSpot - UV));
 	float falloffFactor = 1.0 - clamp(currDistance / flareRadius, 0, 1.0);
 	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
-	color = lerp(color, float3(0.7f, 0.4f, 0.2f), falloffFactor);
+	color += float4(0.8f, 0.4f, 0.2f, falloffFactor);
 
 	flareRadius = 0.06;
 	currentSpot = lerp(projected, reverseBrightSpot, 0.60);
 	currDistance = abs(length(currentSpot - UV));
 	if (currDistance <= flareRadius)
 	{
-		color = lerp(color, float3(0.7f, 0.2f, 0.9f), 0.01);
+		color += float4(0.7f, 0.2f, 0.9f, 0.01);
 	}
 
 	flareRadius = 0.025;
@@ -53,7 +53,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	currDistance = abs(length(currentSpot - UV));
 	falloffFactor = 1.0 - clamp(currDistance / flareRadius, 0, 1.0);
 	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
-	color = lerp(color, float3(0.7f, 0.4f, 0.2f), falloffFactor);
+	color += float4(0.7f, 0.4f, 0.2f, falloffFactor);
 
 	/*for (int i = 1; i <= flaresNo; ++i)
 	{
@@ -70,5 +70,5 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 		//}
 	}*/
 
-	ColorBuf[texCoords] = color;
+	LFBuf[texCoords] = color;
 }

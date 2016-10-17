@@ -228,7 +228,7 @@
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl" />
-    <FxCompile Include="Shaders\Downcopy4to1CS.hlsl" />
+    <FxCompile Include="Shaders\CopyLFtoBack.hlsl" />
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdrCS.hlsl" />
@@ -287,7 +287,7 @@
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\FXAAResolveWorkQueueCS.hlsl" />
-    <FxCompile Include="Shaders\MyEffectCS.hlsl" />
+    <FxCompile Include="Shaders\LensFlareCS.hlsl" />
     <FxCompile Include="Shaders\ParticleBinCullingCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDepthBoundsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDispatchIndirectArgsCS.hlsl" />
