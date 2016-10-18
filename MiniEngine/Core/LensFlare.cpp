@@ -68,7 +68,7 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	ComputeContext& CC = Context.GetComputeContext();
 	CC.SetRootSignature(LensFlareRS);
 
-	MakeBox(Context);
+	//MakeBox(Context);
 
     LensFlareCB lfCB;
 	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10, 1000, -50);

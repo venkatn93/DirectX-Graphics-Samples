@@ -40,20 +40,30 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
 	color += float4(0.8f, 0.4f, 0.2f, falloffFactor);
 
-	flareRadius = 0.06;
-	currentSpot = lerp(projected, reverseBrightSpot, 0.60);
-	currDistance = abs(length(currentSpot - UV));
-	if (currDistance <= flareRadius)
-	{
-		color += float4(0.7f, 0.2f, 0.9f, 0.01);
-	}
-
 	flareRadius = 0.025;
 	currentSpot = lerp(projected, reverseBrightSpot, 1);
 	currDistance = abs(length(currentSpot - UV));
 	falloffFactor = 1.0 - clamp(currDistance / flareRadius, 0, 1.0);
 	falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
 	color += float4(0.7f, 0.4f, 0.2f, falloffFactor);
+
+	// Draw rings
+	flareRadius = 0.05;
+	currentSpot = lerp(projected, reverseBrightSpot, 1.2);
+	currDistance = abs(length(currentSpot - UV));
+	if (abs(currDistance - flareRadius) < 0.0006)
+	{
+		color += float4(0.7f, 0.2f, 0.9f, 0.01);
+	}
+
+	currentSpot = float2(0.5, 0.5);
+	currDistance = abs(length(currentSpot - UV));
+	flareRadius = (length(projected - reverseBrightSpot)*0.6);
+	float dotProd = dot(normalize(UV - currentSpot), normalize(reverseBrightSpot - currentSpot));
+	if (abs(currDistance - flareRadius) < 0.006 && (dotProd > 0.995 || dotProd < -0.995))
+	{
+		color += float4(0.7f, 0.2f, 0.9f, 0.01);
+	}
 
 	/*for (int i = 1; i <= flaresNo; ++i)
 	{
