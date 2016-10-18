@@ -75,20 +75,5 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 			color = float4(float3(1, 1, 1), color.a + 0.35);
 	}
 
-	/*for (int i = 1; i <= flaresNo; ++i)
-	{
-		float2 currentSpot = lerp(projected, reverseBrightSpot, ((float)i / (float)flaresNo));
-		float flareRadius = 0.025;
-		float currDistance = abs(length(currentSpot - UV));
-		float falloffFactor = 1.0 - clamp(currDistance/flareRadius, 0, 1.0);
-		falloffFactor = clamp(falloffFactor*0.035, 0, 1.0);
-        color = lerp(color, float3(1, 1, 1), falloffFactor);
-		// Draw borderline around flare
-		//if (abs(currDistance - flareRadius) < 0.0006)
-		//{
-			//color = float3(1, 1, 1);
-		//}
-	}*/
-
 	LFBuf[texCoords] = color;
 }

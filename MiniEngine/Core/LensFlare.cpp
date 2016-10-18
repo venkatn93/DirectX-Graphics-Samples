@@ -104,5 +104,4 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 		CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight(), 8, 8);
 
     }
-	else return;
 }
