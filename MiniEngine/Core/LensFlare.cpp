@@ -24,6 +24,7 @@ namespace LensFlare
 
 	struct LensFlareCB
     {
+		Math::Vector3 screenRes;
         Math::Vector4 projectedBrightSpot;
     };
 }
@@ -60,7 +61,8 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	CC.SetRootSignature(LensFlareRS);
 
     LensFlareCB lfCB;
-	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10, 1000, -50);
+	Math::Vector3 screen = Math::Vector3(Graphics::g_PingPongBuffer.GetWidth(), Graphics::g_PingPongBuffer.GetHeight(), 0);
+	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10.0, -1000.0, -50.0);
     Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(brightSpotWorldSpace, 1.0);
     projected /= projected.GetW();
     projected.SetY(1.0f - projected.GetY());
@@ -74,6 +76,7 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
         //CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		lfCB.projectedBrightSpot = projected;
+		lfCB.screenRes = screen;
         CC.SetDynamicConstantBufferView(3, sizeof(LensFlareCB), &lfCB);
         CC.SetDynamicDescriptor(1, 0, Graphics::g_PingPongBuffer.GetUAV());
         //CC.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());

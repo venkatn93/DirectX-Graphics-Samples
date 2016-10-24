@@ -4,6 +4,7 @@ RWTexture2D<float4> LFBuf : register(u0);
 
 cbuffer ConstantBuffer : register(b1)
 {
+	float2 screenRes;
 	float4 projectedBrightSpot;
 }
 
@@ -15,7 +16,7 @@ float Falloff_Xsq_C1(float xsq) { xsq = 0.0075 - xsq*xsq; return xsq; }
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID)
 {
 	float2 texCoords = float2(DTid.xy);
-	float2 UV = texCoords / float2(1920.0, 1080.0);
+	float2 UV = texCoords / screenRes.xy;
 	//UV.x *= 1920.0 / 1080.0;
     float2 projected = projectedBrightSpot.xy;
 	float2 reverseBrightSpot = (float2(1, 1)) - projected;
