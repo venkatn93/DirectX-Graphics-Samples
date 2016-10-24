@@ -22,7 +22,7 @@ namespace LensFlare
 	ComputePSO LensFlareCS;
 	ComputePSO CopyBackCS;
 
-    struct LensFlareCB
+	struct LensFlareCB
     {
         Math::Vector4 projectedBrightSpot;
     };
@@ -30,9 +30,9 @@ namespace LensFlare
 
 void LensFlare::Initialize(void)
 {
-	LensFlareRS.Reset(4, 0);
-	//LensFlareRS.InitStaticSampler(0, SamplerLinearClampDesc);
-	//LensFlareRS.InitStaticSampler(1, SamplerLinearBorderDesc);
+	LensFlareRS.Reset(4, 2);
+	LensFlareRS.InitStaticSampler(0, Graphics::SamplerLinearClampDesc);
+	LensFlareRS.InitStaticSampler(1, Graphics::SamplerLinearBorderDesc);
 	LensFlareRS[0].InitAsConstants(0, 4);
 	LensFlareRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	LensFlareRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
@@ -52,15 +52,6 @@ void LensFlare::Shutdown(void)
 {
 }
 
-void LensFlare::Render(GraphicsContext& Context, const float* ProjMat, float NearClipDist, float FarClipDist)
-{
-}
-
-void MakeBox(GraphicsContext& CC)
-{
-	
-}
-
 void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 {
 	ScopedTimer _prof(L"Lens Flare", Context);
@@ -68,13 +59,9 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 	ComputeContext& CC = Context.GetComputeContext();
 	CC.SetRootSignature(LensFlareRS);
 
-	//MakeBox(Context);
-
     LensFlareCB lfCB;
 	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10, 1000, -50);
     Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(brightSpotWorldSpace, 1.0);
-    //projected.SetX(projected.GetX() / -projected.GetZ());
-    //projected.SetY(projected.GetY() / -projected.GetZ());
     projected /= projected.GetW();
     projected.SetY(1.0f - projected.GetY());
 	float dotProduct = Math::Dot(camera.GetForwardVec(), brightSpotWorldSpace - camera.GetPosition());
@@ -93,15 +80,16 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
         //CC.SetDynamicDescriptor(2, 0, g_PingPongBuffer.GetSRV());
 
         CC.SetPipelineState(LensFlareCS);
-        CC.Dispatch2D(Graphics::g_PingPongBuffer.GetWidth(), Graphics::g_PingPongBuffer.GetHeight(), 8, 8);
+        CC.Dispatch2D(Graphics::g_PingPongBuffer.GetWidth(), Graphics::g_PingPongBuffer.GetHeight());
 
 		// Quick buffer copy
 		CC.TransitionResource(Graphics::g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		CC.TransitionResource(Graphics::g_PingPongBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		CC.SetConstants(0, 1.0f / Graphics::g_SceneColorBuffer.GetWidth(), 1.0f / Graphics::g_SceneColorBuffer.GetHeight());
 		CC.SetDynamicDescriptor(1, 0, Graphics::g_SceneColorBuffer.GetUAV());
 		CC.SetDynamicDescriptor(2, 0, Graphics::g_PingPongBuffer.GetSRV());
 		CC.SetPipelineState(CopyBackCS);
-		CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight(), 8, 8);
+		CC.Dispatch2D(Graphics::g_SceneColorBuffer.GetWidth(), Graphics::g_SceneColorBuffer.GetHeight());
 
     }
 }

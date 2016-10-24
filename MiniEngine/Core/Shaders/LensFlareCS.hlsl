@@ -58,7 +58,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	currDistance = abs(length(currentSpot - UV));
 	flareRadius = (length(projected - reverseBrightSpot)*0.6);
 	float dotProd = dot(normalize(UV - currentSpot), normalize(reverseBrightSpot - currentSpot));
-	if (abs(currDistance - flareRadius) < 0.006 && (dotProd > 0.995 || dotProd < -0.995))
+	if (abs(currDistance - flareRadius) < 0.006 && (dotProd > 0.995 ))//|| dotProd < -0.995))
 	{
 		//color += float4(0.7f, 0.2f, 0.9f, 0.01);
 		color = float4(float3(0.9f, 0.9f, 0.9f), color.a + 0.01);
