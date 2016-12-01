@@ -1,6 +1,6 @@
 #include "PostEffectsRS.hlsli"
 
-/*// sizeof(CopyDest):sizeof(CopySrc) = 1:4
+// sizeof(CopyDest):sizeof(CopySrc) = 1:4
 RWTexture2D<float3> CopyDest : register(u0);
 Texture2D<float4> CopySrc : register(t0);
 
@@ -10,8 +10,9 @@ void main(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID)
 {
 	float4 color = CopySrc[DTid.xy];
 	CopyDest[DTid.xy] = lerp(CopyDest[DTid.xy], color.rgb, color.a);
-}*/
+}
 
+/*
 Texture2D<float4> LFBuf : register(t0);
 SamplerState LinearBorder : register(s1);
 RWTexture2D<float3> ColorBuf : register(u0);
@@ -150,3 +151,4 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 	//
 	BlurVertically(DTid.xy, (GTid.y << 3) + GTid.x);
 }
+*/

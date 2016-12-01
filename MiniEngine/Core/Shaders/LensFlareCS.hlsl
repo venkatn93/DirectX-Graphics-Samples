@@ -8,6 +8,8 @@ cbuffer ConstantBuffer : register(b1)
 	float4 projectedBrightSpot;
 }
 
+#define PI 3.14159
+
 // ( 1.0 - x*x )^2
 float Falloff_Xsq_C1(float xsq) { xsq = 0.0075 - xsq*xsq; return xsq; }
 
@@ -75,6 +77,32 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV
 		if (abs(currDelta.y) <= limitY)
 			color = float4(float3(1, 1, 1), color.a + 0.35);
 	}
+
+    // Hexagon test
+    int i;
+    int n = 6; //hexagon
+    float3 O = float3(0.5, 0.5, 0);
+    float R = 0.01;
+    bool test = true;
+    // for looop
+    for (i = 0; i < n; ++i)
+    {
+        float3 A = float3(UV.x + R*cos(i * 2 * PI / n), UV.y + R*sin(i * 2 * PI / n), 0);
+        float3 B = float3(UV.x + R*cos((i+1) * 2 * PI / n), UV.y + R*sin((i+1) * 2 * PI / n), 0);
+        float3 AB = B - A;
+        float3 AO = O - A;
+        float3 AT = float3(UV, 0.0) - A;
+        if (dot(cross(AB, AO), cross(AB, AT)) < 0)
+        {
+            test = false;
+            break;
+        }
+    }
+
+    if (test)
+    {
+        color = float4(1.0, 1.0, 1.0, 1.0);
+    }
 
 	LFBuf[texCoords] = color;
 }

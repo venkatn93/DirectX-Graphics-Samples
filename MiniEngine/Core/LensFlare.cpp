@@ -62,7 +62,7 @@ void LensFlare::Render(GraphicsContext& Context, const Math::Camera& camera)
 
     LensFlareCB lfCB;
 	Math::Vector3 screen = Math::Vector3(Graphics::g_PingPongBuffer.GetWidth(), Graphics::g_PingPongBuffer.GetHeight(), 0);
-	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10.0, -1000.0, -50.0);
+	Math::Vector3 brightSpotWorldSpace = Math::Vector3(10.0, 1000.0, 500.0);
     Math::Vector4 projected = camera.GetViewProjMatrix() * Math::Vector4(brightSpotWorldSpace, 1.0);
     projected /= projected.GetW();
     projected.SetY(1.0f - projected.GetY());
