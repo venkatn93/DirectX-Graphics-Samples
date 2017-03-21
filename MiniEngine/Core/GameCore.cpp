@@ -70,7 +70,8 @@ namespace GameCore
 		EngineTuning::Update(DeltaTime);
 		
 		game.Update(DeltaTime);
-		game.RenderScene();
+		//game.RenderScene();
+        game.RenderHMD();
 
 		PostEffects::Render();
 

@@ -634,5 +634,6 @@ float3 main(VSOutput vsOutput) : SV_Target0
 	}
 #endif
 
+    return float3(0, 1, 0);
 	return colorSum;
 }

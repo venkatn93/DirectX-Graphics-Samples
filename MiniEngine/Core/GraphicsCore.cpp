@@ -65,6 +65,18 @@ DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 #define SAFE_RELEASE(x) if (x != nullptr) { x->Release(); x = nullptr; }
 #endif
 
+// Forward declare some OVR functions otherwise we get compile errors
+OVR_PUBLIC_FUNCTION(ovrResult) ovr_CreateTextureSwapChainDX(ovrSession session,
+    IUnknown* d3dPtr,
+    const ovrTextureSwapChainDesc* desc,
+    ovrTextureSwapChain* outTextureSet);
+
+OVR_PUBLIC_FUNCTION(ovrResult) ovr_GetTextureSwapChainBufferDX(ovrSession session,
+    ovrTextureSwapChain chain,
+    int index,
+    IID iid,
+    void** ppObject);
+
 using namespace Math;
 
 namespace GameCore
@@ -217,6 +229,7 @@ namespace Graphics
 	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
 	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
 	D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
+    D3D12_DEPTH_STENCIL_DESC DepthStateTestLessEqual;
 
 	CommandSignature DispatchIndirectCommandSignature(1);
 	CommandSignature DrawIndirectCommandSignature(1);
@@ -246,6 +259,19 @@ namespace Graphics
 	enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x };
 	const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom" };
 	EnumVar DebugZoom("Graphics/Display/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
+
+    ovrSession g_OVRsession;
+    ovrGraphicsLuid g_OVRluid;
+    ovrHmdDesc g_OVRHMDdesc;
+    ovrEyeRenderDesc g_OVREyeRenderDesc[2];
+    ovrVector3f g_OVRHmdToEyeViewOffset[2];
+    ovrPosef g_OVREyeRenderPose[2];
+    ovrSizei g_OVRresolution;
+    ovrSizei g_OVRbufferSize;
+    ovrTextureSwapChain g_OVRTexChain;
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> g_OVRTexRtv;
+    std::vector<ID3D12Resource*> g_OVRTexResource;
+    ovrLayerEyeFov g_OVRLayer;
 }
 
 void Graphics::Resize(uint32_t width, uint32_t height)
@@ -373,7 +399,26 @@ void Graphics::Initialize(void)
 		ASSERT_SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice)));
 		g_Device = pDevice.Detach();
 	}
-	
+
+    // Initializing OVR session
+    ovrResult result = ovr_Initialize(nullptr);
+    if (OVR_FAILURE(result)) return;
+
+    result = ovr_Create(&g_OVRsession, &g_OVRluid);
+    if (OVR_FAILURE(result))
+    {
+        ovr_Shutdown();
+        return;
+    }
+
+    g_OVRHMDdesc = ovr_GetHmdDesc(g_OVRsession);
+    g_OVRresolution = g_OVRHMDdesc.Resolution;
+
+    g_OVREyeRenderDesc[0] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0]);
+    g_OVREyeRenderDesc[1] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1]);
+    g_OVRHmdToEyeViewOffset[0] = g_OVREyeRenderDesc[0].HmdToEyeOffset;
+    g_OVRHmdToEyeViewOffset[1] = g_OVREyeRenderDesc[1].HmdToEyeOffset;
+
 #if _DEBUG
 	ID3D12InfoQueue* pInfoQueue = nullptr;
 	if (SUCCEEDED(g_Device->QueryInterface(MY_IID_PPV_ARGS(&pInfoQueue))))
@@ -470,6 +515,63 @@ void Graphics::Initialize(void)
 		g_DisplayPlane[i].CreateFromSwapChain(L"Primary SwapChain Buffer", DisplayPlane.Detach());
 	}
 
+    // Setting eye buffer size (?)
+    ovrSizei recommendedTex0Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0], 1.0f);
+    ovrSizei recommendedTex1Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1], 1.0f);
+    g_OVRbufferSize.w = recommendedTex0Size.w + recommendedTex1Size.w;
+    g_OVRbufferSize.h = std::max(recommendedTex0Size.h, recommendedTex1Size.h);
+
+    // OVR texture swap chain creation
+    ovrTextureSwapChainDesc desc = {};
+    desc.Type = ovrTexture_2D;
+    desc.ArraySize = 1;
+    desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+    desc.Width = g_OVRbufferSize.w;
+    desc.Height = g_OVRbufferSize.h;
+    desc.MipLevels = 1;
+    desc.SampleCount = 1;
+    desc.MiscFlags = ovrTextureMisc_DX_Typeless;
+    desc.StaticImage = ovrFalse;
+    desc.BindFlags = ovrTextureBind_DX_RenderTarget;
+
+    result = ovr_CreateTextureSwapChainDX(g_OVRsession, g_CommandManager.GetCommandQueue(), &desc, &g_OVRTexChain);
+    if (OVR_FAILURE(result))
+    {
+        ovr_Shutdown();
+        return;
+    }
+
+    int textureCount = 0;
+    ovr_GetTextureSwapChainLength(g_OVRsession, g_OVRTexChain, &textureCount);
+    g_OVRTexRtv.resize(textureCount);
+    g_OVRTexResource.resize(textureCount);
+    for (int i = 0; i < textureCount; ++i)
+    {
+        result = ovr_GetTextureSwapChainBufferDX(g_OVRsession, g_OVRTexChain, i, IID_PPV_ARGS(&g_OVRTexResource[i]));
+        if (OVR_FAILURE(result))
+        {
+            ovr_Shutdown();
+            return;
+        }
+
+        D3D12_RENDER_TARGET_VIEW_DESC rtvd = {};
+        rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        g_OVRTexRtv[i] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1); // Gives new D3D12_CPU_DESCRIPTOR_HANDLE
+        g_Device->CreateRenderTargetView(g_OVRTexResource[i], &rtvd, g_OVRTexRtv[i]);
+    }
+
+    // Initialize our single full screen Fov layer.
+    g_OVRLayer.Header.Type = ovrLayerType_EyeFov;
+    g_OVRLayer.Header.Flags = 0;
+    g_OVRLayer.ColorTexture[0] = g_OVRTexChain;
+    g_OVRLayer.ColorTexture[1] = g_OVRTexChain;
+    g_OVRLayer.Fov[0] = g_OVREyeRenderDesc[0].Fov;
+    g_OVRLayer.Fov[1] = g_OVREyeRenderDesc[1].Fov;
+    g_OVRLayer.Viewport[0] = { { 0, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
+    g_OVRLayer.Viewport[1] = { { g_OVRbufferSize.w / 2, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
+    // layer.RenderPose and layer.SensorSampleTime are updated later per frame.
+
 	SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	SamplerLinearWrap = SamplerLinearWrapDesc.CreateDescriptor();
 
@@ -558,6 +660,9 @@ void Graphics::Initialize(void)
 
 	DepthStateTestEqual = DepthStateReadOnly;
 	DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+    DepthStateTestLessEqual = DepthStateReadOnly;
+    DepthStateTestLessEqual.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
 	D3D12_BLEND_DESC alphaBlend = {};
 	alphaBlend.IndependentBlendEnable = FALSE;
@@ -671,6 +776,10 @@ void Graphics::Terminate( void )
 
 void Graphics::Shutdown( void )
 {
+    // Shut down OVR session
+    ovr_Destroy(g_OVRsession);
+    ovr_Shutdown();
+
 	CommandContext::DestroyAllContexts();
 	g_CommandManager.Shutdown();
 	GpuTimeManager::Shutdown();

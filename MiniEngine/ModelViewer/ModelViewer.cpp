@@ -63,6 +63,7 @@ public:
 
 	virtual void Update( float deltaT ) override;
 	virtual void RenderScene( void ) override;
+    virtual void RenderHMD( void ) override;
 
 private:
 
@@ -89,6 +90,7 @@ private:
 	GraphicsPSO m_ShadowPSO;
 	GraphicsPSO m_CutoutShadowPSO;
 	GraphicsPSO m_WaveTileCountPSO;
+    GraphicsPSO m_HMDColorPSO;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_DefaultSampler;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowSampler;
@@ -128,8 +130,9 @@ void ModelViewer::Startup( void )
 	m_RootSig.InitStaticSampler(1, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig.Finalize(L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
-	DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
+    DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
+    DXGI_FORMAT HMDDisplayFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
 	DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
 	D3D12_INPUT_ELEMENT_DESC vertElem[] =
@@ -178,6 +181,15 @@ void ModelViewer::Startup( void )
 	m_ModelPSO.SetVertexShader( g_pModelViewerVS, sizeof(g_pModelViewerVS) );
 	m_ModelPSO.SetPixelShader( g_pModelViewerPS, sizeof(g_pModelViewerPS) );
 	m_ModelPSO.Finalize();
+
+    // Full color pass for HMD
+    m_HMDColorPSO = m_DepthPSO;
+    m_HMDColorPSO.SetBlendState(BlendDisable);
+    m_HMDColorPSO.SetDepthStencilState(DepthStateTestLessEqual);
+    m_HMDColorPSO.SetRenderTargetFormats(1, &HMDDisplayFormat, DepthFormat);
+    m_HMDColorPSO.SetVertexShader(g_pModelViewerVS, sizeof(g_pModelViewerVS));
+    m_HMDColorPSO.SetPixelShader(g_pModelViewerPS, sizeof(g_pModelViewerPS));
+    m_HMDColorPSO.Finalize();
 
 #ifdef _WAVE_OP
 	m_ModelWaveOpsPSO = m_ModelPSO;
@@ -549,6 +561,161 @@ void ModelViewer::RenderScene( void )
 		MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
 
 	gfxContext.Finish();
+}
+
+void ModelViewer::RenderHMD(void)
+{
+    // Get both eye poses simultaneously, with IPD offset already included.
+    double displayMidpointSeconds = ovr_GetPredictedDisplayTime(g_OVRsession, 0);
+    ovrTrackingState hmdState = ovr_GetTrackingState(g_OVRsession, displayMidpointSeconds, ovrTrue);
+    ovr_CalcEyePoses(hmdState.HeadPose.ThePose, g_OVRHmdToEyeViewOffset, g_OVRLayer.RenderPose);
+
+    // Get next available index of the texture swap chain
+    int currentIndex = 0;
+    ovr_GetTextureSwapChainCurrentIndex(g_OVRsession, g_OVRTexChain, &currentIndex);
+
+    double sensorSampleTime;    // sensorSampleTime is fed into the layer later
+    ovr_GetEyePoses(g_OVRsession, 0, ovrTrue, g_OVRHmdToEyeViewOffset, g_OVREyeRenderPose, &sensorSampleTime);
+
+    GraphicsContext& gfxContext = GraphicsContext::Begin(L"HMD Render");
+
+    // Set the default state for command lists
+    auto& pfnSetupGraphicsState = [&](void)
+    {
+        gfxContext.SetRootSignature(m_RootSig);
+        gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
+        gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
+    };
+
+    // View projection matrices for each eye
+    Matrix4 HMDViewProj[2];
+
+    // Viewports for each eye
+    D3D12_VIEWPORT vp[2];
+
+    //g_OVRSwapChainBuffer.AssociateWithResource(g_Device, L"OVR Swap Chain Buffer", g_OVRTexResource[currentIndex], D3D12_RESOURCE_STATE_PRESENT);
+
+    for (int eye = 0; eye < 2; eye++)
+    {
+        // Get view and projection matrices for the Rift camera
+        Matrix4 HMDView = m_Camera.GetViewMatrix();
+        ovrMatrix4f OVRproj = ovrMatrix4f_Projection(g_OVRLayer.Fov[eye], 0.2f, 1000.0f, 0);
+        XMMATRIX proj = XMMATRIX(OVRproj.M[0][0], OVRproj.M[0][1], OVRproj.M[0][2], OVRproj.M[0][3],
+                                 OVRproj.M[1][0], OVRproj.M[1][1], OVRproj.M[1][2], OVRproj.M[1][3],
+                                 OVRproj.M[2][0], OVRproj.M[2][1], OVRproj.M[2][2], OVRproj.M[2][3],
+                                 OVRproj.M[3][0], OVRproj.M[3][1], OVRproj.M[3][2], OVRproj.M[3][3]);
+        Matrix4 HMDProj(proj);
+        HMDViewProj[eye] = HMDProj * HMDView;
+
+        // Render the scene for this eye.
+        ovrRecti viewRect = g_OVRLayer.Viewport[eye];
+        vp[eye].TopLeftX = viewRect.Pos.x;
+        vp[eye].TopLeftY = viewRect.Pos.y;
+        vp[eye].Width = viewRect.Size.w;
+        vp[eye].Height = viewRect.Size.h;
+        vp[eye].MinDepth = 0.0f;
+        vp[eye].MaxDepth = 1.0f;
+    }
+
+    ParticleEffects::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
+
+    uint32_t FrameIndex = (uint32_t)Graphics::GetFrameCount() & 1;
+
+    __declspec(align(16)) struct
+    {
+        Vector3 sunDirection;
+        Vector3 sunLight;
+        Vector3 ambientLight;
+        float ShadowTexelSize[4];
+
+        float InvTileDim[4];
+        uint32_t TileCount[4];
+        uint32_t FirstLightIndex[4];
+        float GradFixup[4];
+        float PixelAspect[2];
+        int32_t PixelShift[2];
+    } psConstants;
+
+    psConstants.sunDirection = m_SunDirection;
+    psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
+    psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+    psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
+    psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
+    psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
+    psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
+    psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
+    psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
+    psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
+
+    pfnSetupGraphicsState();
+    RenderLightShadows(gfxContext);
+
+    /*{
+        ScopedTimer _prof(L"Z PrePass", gfxContext);
+
+        gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+
+        {
+            ScopedTimer _prof(L"Opaque", gfxContext);
+            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+            gfxContext.ClearDepth(g_SceneDepthBuffer);
+            gfxContext.SetPipelineState(m_DepthPSO);
+            gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
+            gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
+            RenderObjects(gfxContext, m_ViewProjMatrix, kOpaque);
+        }
+
+        {
+            ScopedTimer _prof(L"Cutout", gfxContext);
+            gfxContext.SetPipelineState(m_CutoutDepthPSO);
+            RenderObjects(gfxContext, m_ViewProjMatrix, kCutout);
+        }
+    }*/
+
+    SSAO::Render(gfxContext, m_Camera);
+
+    Lighting::FillLightGrid(gfxContext, m_Camera);
+
+    // Clear and set up render-target
+    //gfxContext.SetRenderTarget(g_OVRTexRtv[currentIndex]);
+    //gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
+    //gfxContext.setde
+    //gfxContext.ClearDepth(g_SceneDepthBuffer);
+
+    // Render Scene to Eye Buffers
+    for (int eye = 0; eye < 2; eye++)
+    {
+        //gfxContext.TransitionResource(g_OVRSwapChainBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        //gfxContext.ClearColor(g_OVRSwapChainBuffer);
+
+        pfnSetupGraphicsState();
+
+        gfxContext.SetDynamicDescriptors(3, 0, _countof(m_ExtraTextures), m_ExtraTextures);
+        gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+        gfxContext.SetPipelineState(m_HMDColorPSO);
+        gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+        gfxContext.SetRenderTarget(g_OVRTexRtv[currentIndex], g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+        gfxContext.SetViewport(vp[eye]);
+
+        RenderObjects(gfxContext, HMDViewProj[eye], kOpaque);
+    }
+
+    // Commit the changes to the texture swap chain
+    ovr_CommitTextureSwapChain(g_OVRsession, g_OVRTexChain);
+
+    gfxContext.Finish();
+
+    // Finish feeding the render pose and sensor sample time to the layer
+    g_OVRLayer.RenderPose[0] = g_OVREyeRenderPose[0];
+    g_OVRLayer.RenderPose[1] = g_OVREyeRenderPose[1];
+    g_OVRLayer.SensorSampleTime = sensorSampleTime;
+
+    // Submit frame with one layer we have.
+    ovrLayerHeader* layers = &g_OVRLayer.Header;
+    ovrResult       result = ovr_SubmitFrame(g_OVRsession, 0, nullptr, &layers, 1);
+    //isVisible = (result == ovrSuccess);
+
 }
 
 void ModelViewer::CreateParticleEffects()

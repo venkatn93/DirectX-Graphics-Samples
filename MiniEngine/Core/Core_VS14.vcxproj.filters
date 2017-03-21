@@ -745,9 +745,6 @@
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ColorPackingTestPS.hlsl">
-      <Filter>Shaders\Misc</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\BoundNeighborhoodCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>

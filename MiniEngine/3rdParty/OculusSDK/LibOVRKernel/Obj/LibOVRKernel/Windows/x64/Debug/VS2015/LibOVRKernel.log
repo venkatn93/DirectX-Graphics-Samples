@@ -1,0 +1,40 @@
+﻿  compilation header save succeeded; see C:\Users\Niraj Venkat\Downloads\OculusSDK\LibOVRKernel\Src\Util\Shaders\Blt_ps.h
+  compilation header save succeeded; see C:\Users\Niraj Venkat\Downloads\OculusSDK\LibOVRKernel\Src\Util\Shaders\Blt_vs.h
+  Logging_Tools.cpp
+  Logging_Library.cpp
+  Logging_OutputPlugins.cpp
+  CAPI_GLE.cpp
+  OVR_Alg.cpp
+  OVR_Allocator.cpp
+  OVR_Atomic.cpp
+  OVR_Callbacks.cpp
+  OVR_CRC32.cpp
+  OVR_DebugHelp.cpp
+  OVR_Error.cpp
+  OVR_File.cpp
+  OVR_FileFILE.cpp
+  OVR_JSON.cpp
+  OVR_Log.cpp
+  OVR_Rand.cpp
+  OVR_RefCount.cpp
+  OVR_SharedMemory.cpp
+  OVR_Std.cpp
+  OVR_String.cpp
+  OVR_String_FormatUtil.cpp
+  OVR_String_PathUtil.cpp
+  OVR_SysFile.cpp
+  OVR_System.cpp
+  OVR_ThreadsPthread.cpp
+  OVR_ThreadsWinAPI.cpp
+  OVR_Timer.cpp
+  OVR_UTF8Util.cpp
+  Util_D3D11_Blitter.cpp
+  Util_Direct3D.cpp
+  Util_GL_Blitter.cpp
+  Util_ImageWindow.cpp
+  Util_LongPollThread.cpp
+  Util_SystemGUI.cpp
+  Util_SystemInfo.cpp
+  Util_Watchdog.cpp
+  OVR_mach_exc_OSX.c
+  LibOVRKernel.vcxproj -> C:\Users\Niraj Venkat\Downloads\OculusSDK\LibOVRKernel\Projects\Windows\VS2015\../../../Lib/Windows/x64/Debug/VS2015/LibOVRKernel.lib

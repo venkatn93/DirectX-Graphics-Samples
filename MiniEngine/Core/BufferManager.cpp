@@ -25,6 +25,7 @@ namespace Graphics
 	ColorBuffer g_VelocityBuffer;
 	ColorBuffer g_OverlayBuffer;
 	ColorBuffer g_HorizontalBuffer;
+    ColorBuffer g_OVRSwapChainBuffer;
 
 	ShadowBuffer g_ShadowBuffer;
 
@@ -295,4 +296,6 @@ void Graphics::DestroyRenderingBuffers()
 	g_FXAAColorQueueV.Destroy();
 
 	g_GenMipsBuffer.Destroy();
+
+    g_OVRSwapChainBuffer.Destroy();
 }

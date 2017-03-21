@@ -56,3 +56,6 @@
 #include "VectorMath.h"
 #include "EngineTuning.h"
 #include "EngineProfiling.h"
+
+// Oculus SDK
+#include "OVR_CAPI.h"

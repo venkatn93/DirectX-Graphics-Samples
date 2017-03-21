@@ -69,6 +69,24 @@
     <Manifest>
       <EnableDPIAwareness>true</EnableDPIAwareness>
     </Manifest>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..\Core;..\3rdParty\OculusSDK\LibOVR\Include; ..\3rdParty\OculusSDK\LibOVR\Src</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\Core;..\3rdParty\OculusSDK\LibOVR\Include; ..\3rdParty\OculusSDK\LibOVR\Src</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\Core;..\3rdParty\OculusSDK\LibOVR\Include; ..\3rdParty\OculusSDK\LibOVR\Src</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..\3rdParty\OculusSDK\LibOVR\Lib\Windows\x64\Debug\VS2015\LibOVR.lib</AdditionalLibraryDirectories>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\3rdParty\OculusSDK\LibOVR\Lib\Windows\x64\Debug\VS2015\LibOVR.lib</AdditionalLibraryDirectories>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\3rdParty\OculusSDK\LibOVR\Lib\Windows\x64\Debug\VS2015\LibOVR.lib</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Model.h" />

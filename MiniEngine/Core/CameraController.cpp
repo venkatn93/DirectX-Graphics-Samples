@@ -15,6 +15,7 @@
 #include "CameraController.h"
 #include "Camera.h"
 #include "GameInput.h"
+#include "GraphicsCore.h"
 
 using namespace Math;
 using namespace GameCore;
@@ -113,6 +114,22 @@ void CameraController::Update( float deltaTime )
 	Matrix3 orientation = Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * Matrix3::MakeYRotation( m_CurrentHeading ) * Matrix3::MakeXRotation( m_CurrentPitch );
 	Vector3 position = orientation * Vector3( strafe, ascent, -forward ) + m_TargetCamera.GetPosition();
 	m_TargetCamera.SetTransform( AffineTransform( orientation, position ) );
+
+    // Query the HMD for ts current tracking state.
+    ovrTrackingState ts = ovr_GetTrackingState(Graphics::g_OVRsession, ovr_GetTimeInSeconds(), ovrTrue);
+    if (ts.StatusFlags & (ovrStatus_OrientationTracked | ovrStatus_PositionTracked))
+    {
+        ovrPosef pose = ts.HeadPose.ThePose;
+        XMVECTOR vec;
+        vec.m128_f32[0] = pose.Orientation.x;
+        vec.m128_f32[1] = pose.Orientation.y;
+        vec.m128_f32[2] = pose.Orientation.z;
+        vec.m128_f32[3] = pose.Orientation.w;
+        Quaternion quat(vec);
+        m_TargetCamera.SetRotation(quat);
+        //m_TargetCamera.SetPosition(Vector3(pose.Position.x, pose.Position.y, pose.Position.z) * 5000);
+    }
+
 	m_TargetCamera.Update();
 }
 

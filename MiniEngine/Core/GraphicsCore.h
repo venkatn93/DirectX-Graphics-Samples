@@ -98,6 +98,7 @@ namespace Graphics
 	extern D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
 	extern D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
 	extern D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
+    extern D3D12_DEPTH_STENCIL_DESC DepthStateTestLessEqual;
 
 	extern CommandSignature DispatchIndirectCommandSignature;
 	extern CommandSignature DrawIndirectCommandSignature;
@@ -111,4 +112,18 @@ namespace Graphics
 	extern RootSignature g_GenerateMipsRS;
 	extern ComputePSO g_GenerateMipsLinearPSO[4];
 	extern ComputePSO g_GenerateMipsGammaPSO[4];
+
+    // OVR primitives
+    extern ovrSession g_OVRsession;
+    extern ovrGraphicsLuid g_OVRluid;
+    extern ovrHmdDesc g_OVRHMDdesc;
+    extern ovrEyeRenderDesc g_OVREyeRenderDesc[2];
+    extern ovrVector3f g_OVRHmdToEyeViewOffset[2];
+    extern ovrPosef g_OVREyeRenderPose[2];
+    extern ovrSizei g_OVRresolution;
+    extern ovrSizei g_OVRbufferSize;
+    extern ovrTextureSwapChain g_OVRTexChain;
+    extern std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> g_OVRTexRtv;
+    extern std::vector<ID3D12Resource*> g_OVRTexResource;
+    extern ovrLayerEyeFov g_OVRLayer;
 }
