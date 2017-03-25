@@ -70,8 +70,10 @@ namespace GameCore
 		EngineTuning::Update(DeltaTime);
 		
 		game.Update(DeltaTime);
-		//game.RenderScene();
-        game.RenderHMD();
+        if(!g_bEnableOVR)
+	        game.RenderScene();
+        else
+            game.RenderHMD();
 
 		PostEffects::Render();
 

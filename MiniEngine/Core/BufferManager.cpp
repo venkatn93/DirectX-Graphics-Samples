@@ -25,7 +25,6 @@ namespace Graphics
 	ColorBuffer g_VelocityBuffer;
 	ColorBuffer g_OverlayBuffer;
 	ColorBuffer g_HorizontalBuffer;
-    ColorBuffer g_OVRSwapChainBuffer;
 
 	ShadowBuffer g_ShadowBuffer;
 
@@ -80,6 +79,10 @@ namespace Graphics
 
 	// For testing GenerateMipMaps()
 	ColorBuffer g_GenMipsBuffer;
+
+    // OVR Buffers
+    ColorBuffer g_OVRSwapChainBuffer;
+    DepthBuffer g_OVREyeDB[2];
 }
 
 #define T2X_COLOR_FORMAT DXGI_FORMAT_R10G10B10A2_UNORM
@@ -218,6 +221,13 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 			g_GenMipsBuffer.Create(L"GenMips", bufferWidth, bufferHeight, 0, DXGI_FORMAT_R11G11B10_FLOAT, esram);
 		esram.PopStack();
 
+        // OVR Depth Buffers
+        if (g_bEnableOVR)
+        {
+            g_OVREyeDB[0].Create(L"Left Eye Depth Buffer", g_OVRbufferSize.w / 2, g_OVRbufferSize.h, DSV_FORMAT, esram);
+            g_OVREyeDB[1].Create(L"Right Eye Depth Buffer", g_OVRbufferSize.w / 2, g_OVRbufferSize.h, DSV_FORMAT, esram);
+        }
+
 		g_OverlayBuffer.Create( L"UI Overlay", 1920, 1080, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram );
 		g_HorizontalBuffer.Create(L"Bicubic Intermediate", 4096, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
 
@@ -228,74 +238,79 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
 void Graphics::DestroyRenderingBuffers()
 {
-	g_SceneDepthBuffer.Destroy();
-	g_SceneColorBuffer.Destroy();
-	g_VelocityBuffer.Destroy();
-	g_OverlayBuffer.Destroy();
-	g_HorizontalBuffer.Destroy();
-	g_PostEffectsBuffer.Destroy();
+    g_SceneDepthBuffer.Destroy();
+    g_SceneColorBuffer.Destroy();
+    g_VelocityBuffer.Destroy();
+    g_OverlayBuffer.Destroy();
+    g_HorizontalBuffer.Destroy();
+    g_PostEffectsBuffer.Destroy();
 
-	g_ShadowBuffer.Destroy();
+    g_ShadowBuffer.Destroy();
 
-	g_SSAOFullScreen.Destroy();
-	g_LinearDepth.Destroy();
-	g_MinMaxDepth8.Destroy();
-	g_MinMaxDepth16.Destroy();
-	g_MinMaxDepth32.Destroy();
-	g_DepthDownsize1.Destroy();
-	g_DepthDownsize2.Destroy();
-	g_DepthDownsize3.Destroy();
-	g_DepthDownsize4.Destroy();
-	g_DepthTiled1.Destroy();
-	g_DepthTiled2.Destroy();
-	g_DepthTiled3.Destroy();
-	g_DepthTiled4.Destroy();
-	g_AOMerged1.Destroy();
-	g_AOMerged2.Destroy();
-	g_AOMerged3.Destroy();
-	g_AOMerged4.Destroy();
-	g_AOSmooth1.Destroy();
-	g_AOSmooth2.Destroy();
-	g_AOSmooth3.Destroy();
-	g_AOHighQuality1.Destroy();
-	g_AOHighQuality2.Destroy();
-	g_AOHighQuality3.Destroy();
-	g_AOHighQuality4.Destroy();
+    g_SSAOFullScreen.Destroy();
+    g_LinearDepth.Destroy();
+    g_MinMaxDepth8.Destroy();
+    g_MinMaxDepth16.Destroy();
+    g_MinMaxDepth32.Destroy();
+    g_DepthDownsize1.Destroy();
+    g_DepthDownsize2.Destroy();
+    g_DepthDownsize3.Destroy();
+    g_DepthDownsize4.Destroy();
+    g_DepthTiled1.Destroy();
+    g_DepthTiled2.Destroy();
+    g_DepthTiled3.Destroy();
+    g_DepthTiled4.Destroy();
+    g_AOMerged1.Destroy();
+    g_AOMerged2.Destroy();
+    g_AOMerged3.Destroy();
+    g_AOMerged4.Destroy();
+    g_AOSmooth1.Destroy();
+    g_AOSmooth2.Destroy();
+    g_AOSmooth3.Destroy();
+    g_AOHighQuality1.Destroy();
+    g_AOHighQuality2.Destroy();
+    g_AOHighQuality3.Destroy();
+    g_AOHighQuality4.Destroy();
 
-	g_DoFTileClass[0].Destroy();
-	g_DoFTileClass[1].Destroy();
-	g_DoFPresortBuffer.Destroy();
-	g_DoFPrefilter.Destroy();
-	g_DoFBlurColor[0].Destroy();
-	g_DoFBlurColor[1].Destroy();
-	g_DoFBlurAlpha[0].Destroy();
-	g_DoFBlurAlpha[1].Destroy();
-	g_DoFWorkQueue.Destroy();
-	g_DoFFastQueue.Destroy();
-	g_DoFFixupQueue.Destroy();
+    g_DoFTileClass[0].Destroy();
+    g_DoFTileClass[1].Destroy();
+    g_DoFPresortBuffer.Destroy();
+    g_DoFPrefilter.Destroy();
+    g_DoFBlurColor[0].Destroy();
+    g_DoFBlurColor[1].Destroy();
+    g_DoFBlurAlpha[0].Destroy();
+    g_DoFBlurAlpha[1].Destroy();
+    g_DoFWorkQueue.Destroy();
+    g_DoFFastQueue.Destroy();
+    g_DoFFixupQueue.Destroy();
 
-	g_MotionPrepBuffer.Destroy();
-	g_LumaBuffer.Destroy();
-	g_TemporalColor[0].Destroy();
-	g_TemporalColor[1].Destroy();
-	g_aBloomUAV1[0].Destroy();
-	g_aBloomUAV1[1].Destroy();
-	g_aBloomUAV2[0].Destroy();
-	g_aBloomUAV2[1].Destroy();
-	g_aBloomUAV3[0].Destroy();
-	g_aBloomUAV3[1].Destroy();
-	g_aBloomUAV4[0].Destroy();
-	g_aBloomUAV4[1].Destroy();
-	g_aBloomUAV5[0].Destroy();
-	g_aBloomUAV5[1].Destroy();
-	g_LumaLR.Destroy();
-	g_Histogram.Destroy();
-	g_FXAAWorkQueueH.Destroy();
-	g_FXAAWorkQueueV.Destroy();
-	g_FXAAColorQueueH.Destroy();
-	g_FXAAColorQueueV.Destroy();
+    g_MotionPrepBuffer.Destroy();
+    g_LumaBuffer.Destroy();
+    g_TemporalColor[0].Destroy();
+    g_TemporalColor[1].Destroy();
+    g_aBloomUAV1[0].Destroy();
+    g_aBloomUAV1[1].Destroy();
+    g_aBloomUAV2[0].Destroy();
+    g_aBloomUAV2[1].Destroy();
+    g_aBloomUAV3[0].Destroy();
+    g_aBloomUAV3[1].Destroy();
+    g_aBloomUAV4[0].Destroy();
+    g_aBloomUAV4[1].Destroy();
+    g_aBloomUAV5[0].Destroy();
+    g_aBloomUAV5[1].Destroy();
+    g_LumaLR.Destroy();
+    g_Histogram.Destroy();
+    g_FXAAWorkQueueH.Destroy();
+    g_FXAAWorkQueueV.Destroy();
+    g_FXAAColorQueueH.Destroy();
+    g_FXAAColorQueueV.Destroy();
 
-	g_GenMipsBuffer.Destroy();
+    g_GenMipsBuffer.Destroy();
 
-    g_OVRSwapChainBuffer.Destroy();
+    if (g_bEnableOVR)
+    {
+        //g_OVRSwapChainBuffer.Destroy();
+        g_OVREyeDB[0].Destroy();
+        g_OVREyeDB[1].Destroy();
+    }
 }

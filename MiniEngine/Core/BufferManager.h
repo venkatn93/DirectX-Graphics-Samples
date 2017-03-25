@@ -82,6 +82,7 @@ namespace Graphics
 	extern TypedBuffer g_FXAAColorQueueV;
 
     extern ColorBuffer g_OVRSwapChainBuffer;
+    extern DepthBuffer g_OVREyeDB[2];
 
 	void InitializeRenderingBuffers( uint32_t BufferWidth, uint32_t BufferHeight);
 	void DestroyRenderingBuffers();

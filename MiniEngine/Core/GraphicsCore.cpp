@@ -119,6 +119,7 @@ namespace Graphics
 
 	bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
 	bool g_bEnableHDROutput = false;
+    bool g_bEnableOVR = false;
 	NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 400.0f, 80.0f, 520.0f, 40.0f);
 	NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 1000.0f, 400.0f, 2000.0f, 50.0f);
 	const char* HDRModeLabels[] = { "HDR", "LDR", "Side-by-Side" };
@@ -400,24 +401,29 @@ void Graphics::Initialize(void)
 		g_Device = pDevice.Detach();
 	}
 
-    // Initializing OVR session
-    ovrResult result = ovr_Initialize(nullptr);
-    if (OVR_FAILURE(result)) return;
+    ovrResult result;
 
-    result = ovr_Create(&g_OVRsession, &g_OVRluid);
-    if (OVR_FAILURE(result))
+    if (g_bEnableOVR)
     {
-        ovr_Shutdown();
-        return;
+        // Initializing OVR session
+        result = ovr_Initialize(nullptr);
+        if (OVR_FAILURE(result)) return;
+
+        result = ovr_Create(&g_OVRsession, &g_OVRluid);
+        if (OVR_FAILURE(result))
+        {
+            ovr_Shutdown();
+            return;
+        }
+
+        g_OVRHMDdesc = ovr_GetHmdDesc(g_OVRsession);
+        g_OVRresolution = g_OVRHMDdesc.Resolution;
+
+        g_OVREyeRenderDesc[0] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0]);
+        g_OVREyeRenderDesc[1] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1]);
+        g_OVRHmdToEyeViewOffset[0] = g_OVREyeRenderDesc[0].HmdToEyeOffset;
+        g_OVRHmdToEyeViewOffset[1] = g_OVREyeRenderDesc[1].HmdToEyeOffset;
     }
-
-    g_OVRHMDdesc = ovr_GetHmdDesc(g_OVRsession);
-    g_OVRresolution = g_OVRHMDdesc.Resolution;
-
-    g_OVREyeRenderDesc[0] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0]);
-    g_OVREyeRenderDesc[1] = ovr_GetRenderDesc(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1]);
-    g_OVRHmdToEyeViewOffset[0] = g_OVREyeRenderDesc[0].HmdToEyeOffset;
-    g_OVRHmdToEyeViewOffset[1] = g_OVREyeRenderDesc[1].HmdToEyeOffset;
 
 #if _DEBUG
 	ID3D12InfoQueue* pInfoQueue = nullptr;
@@ -515,62 +521,65 @@ void Graphics::Initialize(void)
 		g_DisplayPlane[i].CreateFromSwapChain(L"Primary SwapChain Buffer", DisplayPlane.Detach());
 	}
 
-    // Setting eye buffer size (?)
-    ovrSizei recommendedTex0Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0], 1.0f);
-    ovrSizei recommendedTex1Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1], 1.0f);
-    g_OVRbufferSize.w = recommendedTex0Size.w + recommendedTex1Size.w;
-    g_OVRbufferSize.h = std::max(recommendedTex0Size.h, recommendedTex1Size.h);
-
-    // OVR texture swap chain creation
-    ovrTextureSwapChainDesc desc = {};
-    desc.Type = ovrTexture_2D;
-    desc.ArraySize = 1;
-    desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-    desc.Width = g_OVRbufferSize.w;
-    desc.Height = g_OVRbufferSize.h;
-    desc.MipLevels = 1;
-    desc.SampleCount = 1;
-    desc.MiscFlags = ovrTextureMisc_DX_Typeless;
-    desc.StaticImage = ovrFalse;
-    desc.BindFlags = ovrTextureBind_DX_RenderTarget;
-
-    result = ovr_CreateTextureSwapChainDX(g_OVRsession, g_CommandManager.GetCommandQueue(), &desc, &g_OVRTexChain);
-    if (OVR_FAILURE(result))
+    if (g_bEnableOVR)
     {
-        ovr_Shutdown();
-        return;
-    }
+        // Setting eye buffer size (?)
+        ovrSizei recommendedTex0Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Left, g_OVRHMDdesc.DefaultEyeFov[0], 1.0f);
+        ovrSizei recommendedTex1Size = ovr_GetFovTextureSize(g_OVRsession, ovrEye_Right, g_OVRHMDdesc.DefaultEyeFov[1], 1.0f);
+        g_OVRbufferSize.w = recommendedTex0Size.w + recommendedTex1Size.w;
+        g_OVRbufferSize.h = std::max(recommendedTex0Size.h, recommendedTex1Size.h);
 
-    int textureCount = 0;
-    ovr_GetTextureSwapChainLength(g_OVRsession, g_OVRTexChain, &textureCount);
-    g_OVRTexRtv.resize(textureCount);
-    g_OVRTexResource.resize(textureCount);
-    for (int i = 0; i < textureCount; ++i)
-    {
-        result = ovr_GetTextureSwapChainBufferDX(g_OVRsession, g_OVRTexChain, i, IID_PPV_ARGS(&g_OVRTexResource[i]));
+        // OVR texture swap chain creation
+        ovrTextureSwapChainDesc desc = {};
+        desc.Type = ovrTexture_2D;
+        desc.ArraySize = 1;
+        desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+        desc.Width = g_OVRbufferSize.w;
+        desc.Height = g_OVRbufferSize.h;
+        desc.MipLevels = 1;
+        desc.SampleCount = 1;
+        desc.MiscFlags = ovrTextureMisc_DX_Typeless;
+        desc.StaticImage = ovrFalse;
+        desc.BindFlags = ovrTextureBind_DX_RenderTarget;
+
+        result = ovr_CreateTextureSwapChainDX(g_OVRsession, g_CommandManager.GetCommandQueue(), &desc, &g_OVRTexChain);
         if (OVR_FAILURE(result))
         {
             ovr_Shutdown();
             return;
         }
 
-        D3D12_RENDER_TARGET_VIEW_DESC rtvd = {};
-        rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-        g_OVRTexRtv[i] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1); // Gives new D3D12_CPU_DESCRIPTOR_HANDLE
-        g_Device->CreateRenderTargetView(g_OVRTexResource[i], &rtvd, g_OVRTexRtv[i]);
-    }
+        int textureCount = 0;
+        ovr_GetTextureSwapChainLength(g_OVRsession, g_OVRTexChain, &textureCount);
+        g_OVRTexRtv.resize(textureCount);
+        g_OVRTexResource.resize(textureCount);
+        for (int i = 0; i < textureCount; ++i)
+        {
+            result = ovr_GetTextureSwapChainBufferDX(g_OVRsession, g_OVRTexChain, i, IID_PPV_ARGS(&g_OVRTexResource[i]));
+            if (OVR_FAILURE(result))
+            {
+                ovr_Shutdown();
+                return;
+            }
 
-    // Initialize our single full screen Fov layer.
-    g_OVRLayer.Header.Type = ovrLayerType_EyeFov;
-    g_OVRLayer.Header.Flags = 0;
-    g_OVRLayer.ColorTexture[0] = g_OVRTexChain;
-    g_OVRLayer.ColorTexture[1] = g_OVRTexChain;
-    g_OVRLayer.Fov[0] = g_OVREyeRenderDesc[0].Fov;
-    g_OVRLayer.Fov[1] = g_OVREyeRenderDesc[1].Fov;
-    g_OVRLayer.Viewport[0] = { { 0, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
-    g_OVRLayer.Viewport[1] = { { g_OVRbufferSize.w / 2, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
-    // layer.RenderPose and layer.SensorSampleTime are updated later per frame.
+            D3D12_RENDER_TARGET_VIEW_DESC rtvd = {};
+            rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+            g_OVRTexRtv[i] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1); // Gives new D3D12_CPU_DESCRIPTOR_HANDLE
+            g_Device->CreateRenderTargetView(g_OVRTexResource[i], &rtvd, g_OVRTexRtv[i]);
+        }
+
+        // Initialize our single full screen Fov layer.
+        g_OVRLayer.Header.Type = ovrLayerType_EyeFov;
+        g_OVRLayer.Header.Flags = 0;
+        g_OVRLayer.ColorTexture[0] = g_OVRTexChain;
+        g_OVRLayer.ColorTexture[1] = g_OVRTexChain;
+        g_OVRLayer.Fov[0] = g_OVREyeRenderDesc[0].Fov;
+        g_OVRLayer.Fov[1] = g_OVREyeRenderDesc[1].Fov;
+        g_OVRLayer.Viewport[0] = { { 0, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
+        g_OVRLayer.Viewport[1] = { { g_OVRbufferSize.w / 2, 0 }, { g_OVRbufferSize.w / 2, g_OVRbufferSize.h } };
+        // layer.RenderPose and layer.SensorSampleTime are updated later per frame.
+    }
 
 	SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	SamplerLinearWrap = SamplerLinearWrapDesc.CreateDescriptor();
