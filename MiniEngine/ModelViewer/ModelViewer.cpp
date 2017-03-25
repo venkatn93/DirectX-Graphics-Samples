@@ -600,6 +600,9 @@ void ModelViewer::RenderHMD(void)
     {
         // Get view and projection matrices for the Rift camera
         Matrix4 HMDView = m_Camera.GetViewMatrix();
+        ovrVector3f viewOffset = g_OVRHmdToEyeViewOffset[eye];
+        AffineTransform viewMatTransform = AffineTransform::MakeTranslation(Vector3(viewOffset.x, viewOffset.y, viewOffset.z));
+        HMDView = HMDView * viewMatTransform;
         ovrMatrix4f OVRproj = ovrMatrix4f_Projection(g_OVRLayer.Fov[eye], 0.2f, 1000.0f, 0);
         XMMATRIX proj = XMMATRIX(OVRproj.M[0][0], OVRproj.M[0][1], OVRproj.M[0][2], OVRproj.M[0][3],
                                  OVRproj.M[1][0], OVRproj.M[1][1], OVRproj.M[1][2], OVRproj.M[1][3],
@@ -649,33 +652,36 @@ void ModelViewer::RenderHMD(void)
     psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
 
     pfnSetupGraphicsState();
-    RenderLightShadows(gfxContext);
+    //RenderLightShadows(gfxContext);
 
-    /*{
+    // Perform depth pre-pass for each eye
+    for (int eye = 0; eye < 2; eye++)
+    {
         ScopedTimer _prof(L"Z PrePass", gfxContext);
 
         gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
         {
             ScopedTimer _prof(L"Opaque", gfxContext);
-            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-            gfxContext.ClearDepth(g_SceneDepthBuffer);
+            gfxContext.TransitionResource(g_OVREyeDB[eye], D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+            gfxContext.ClearDepth(g_OVREyeDB[eye]);
             gfxContext.SetPipelineState(m_DepthPSO);
-            gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
-            gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
-            RenderObjects(gfxContext, m_ViewProjMatrix, kOpaque);
+            gfxContext.SetDepthStencilTarget(g_OVREyeDB[eye].GetDSV());
+            gfxContext.SetViewport(vp[eye]);
+            RenderObjects(gfxContext, HMDViewProj[eye], kOpaque);
         }
 
         {
             ScopedTimer _prof(L"Cutout", gfxContext);
             gfxContext.SetPipelineState(m_CutoutDepthPSO);
-            RenderObjects(gfxContext, m_ViewProjMatrix, kCutout);
+            RenderObjects(gfxContext, HMDViewProj[eye], kCutout);
         }
-    }*/
+    }
 
-    SSAO::Render(gfxContext, m_Camera);
+    //SSAO::Render(gfxContext, m_Camera);
+    gfxContext.ClearColor(g_SSAOFullScreen);
 
-    Lighting::FillLightGrid(gfxContext, m_Camera);
+    //Lighting::FillLightGrid(gfxContext, m_Camera);
 
     // Clear and set up render-target
     //gfxContext.SetRenderTarget(g_OVRTexRtv[currentIndex]);
@@ -693,9 +699,9 @@ void ModelViewer::RenderHMD(void)
 
         gfxContext.SetDynamicDescriptors(3, 0, _countof(m_ExtraTextures), m_ExtraTextures);
         gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
-        gfxContext.SetPipelineState(m_HMDColorPSO);
-        gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-        gfxContext.SetRenderTarget(g_OVRTexRtv[currentIndex], g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+        gfxContext.SetPipelineState(m_ModelPSO);
+        gfxContext.TransitionResource(g_OVREyeDB[eye], D3D12_RESOURCE_STATE_DEPTH_READ, true);
+        gfxContext.SetRenderTarget(g_OVRTexRtv[currentIndex], g_OVREyeDB[eye].GetDSV_DepthReadOnly());
         gfxContext.SetViewport(vp[eye]);
 
         RenderObjects(gfxContext, HMDViewProj[eye], kOpaque);
